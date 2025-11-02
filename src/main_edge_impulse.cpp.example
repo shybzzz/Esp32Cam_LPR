@@ -1,0 +1,153 @@
+/**
+ * ESP32-CAM License Plate Recognition with Edge Impulse
+ * 
+ * After training your model on Edge Impulse:
+ * 1. Download as Arduino library
+ * 2. Extract to lib/ folder
+ * 3. Update the include below with your project name
+ */
+
+#include <your_project_name_inferencing.h>  // Replace with your Edge Impulse project name
+#include "edge-impulse-sdk/dsp/image/image.hpp"
+
+// Camera includes
+#include "esp_camera.h"
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
+// AI-Thinker ESP32-CAM pin definition
+#define PWDN_GPIO_NUM     32
+#define RESET_GPIO_NUM    -1
+#define XCLK_GPIO_NUM      0
+#define SIOD_GPIO_NUM     26
+#define SIOC_GPIO_NUM     27
+#define Y9_GPIO_NUM       35
+#define Y8_GPIO_NUM       34
+#define Y7_GPIO_NUM       39
+#define Y6_GPIO_NUM       36
+#define Y5_GPIO_NUM       21
+#define Y4_GPIO_NUM       19
+#define Y3_GPIO_NUM       18
+#define Y2_GPIO_NUM        5
+#define VSYNC_GPIO_NUM    25
+#define HREF_GPIO_NUM     23
+#define PCLK_GPIO_NUM     22
+
+void setup_camera() {
+    camera_config_t config;
+    config.ledc_channel = LEDC_CHANNEL_0;
+    config.ledc_timer = LEDC_TIMER_0;
+    config.pin_d0 = Y2_GPIO_NUM;
+    config.pin_d1 = Y3_GPIO_NUM;
+    config.pin_d2 = Y4_GPIO_NUM;
+    config.pin_d3 = Y5_GPIO_NUM;
+    config.pin_d4 = Y6_GPIO_NUM;
+    config.pin_d5 = Y7_GPIO_NUM;
+    config.pin_d6 = Y8_GPIO_NUM;
+    config.pin_d7 = Y9_GPIO_NUM;
+    config.pin_xclk = XCLK_GPIO_NUM;
+    config.pin_pclk = PCLK_GPIO_NUM;
+    config.pin_vsync = VSYNC_GPIO_NUM;
+    config.pin_href = HREF_GPIO_NUM;
+    config.pin_sscb_sda = SIOD_GPIO_NUM;
+    config.pin_sscb_scl = SIOC_GPIO_NUM;
+    config.pin_pwdn = PWDN_GPIO_NUM;
+    config.pin_reset = RESET_GPIO_NUM;
+    config.xclk_freq_hz = 20000000;
+    config.pixel_format = PIXFORMAT_GRAYSCALE;
+    config.frame_size = FRAMESIZE_96X96;  // Match your Edge Impulse input
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+    
+    // Initialize camera
+    esp_err_t err = esp_camera_init(&config);
+    if (err != ESP_OK) {
+        Serial.printf("Camera init failed: 0x%x\n", err);
+        return;
+    }
+    
+    Serial.println("Camera ready!");
+}
+
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+    
+    Serial.println("Edge Impulse ESP32-CAM License Plate Recognition");
+    
+    // Disable brownout detector
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    
+    setup_camera();
+    
+    Serial.println("Setup complete!");
+}
+
+void loop() {
+    ei_impulse_result_t result = {0};
+    
+    // Capture image
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb) {
+        Serial.println("Camera capture failed");
+        delay(1000);
+        return;
+    }
+    
+    Serial.println("Image captured");
+    
+    // Prepare features buffer
+    signal_t features_signal;
+    features_signal.total_length = EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT;
+    
+    // Create signal from frame buffer
+    // This is a simplified version - Edge Impulse library provides helpers
+    features_signal.get_data = [fb](size_t offset, size_t length, float *out_ptr) -> int {
+        // Convert grayscale image to float features
+        for (size_t ix = 0; ix < length; ix++) {
+            out_ptr[ix] = (float)fb->buf[offset + ix] / 255.0f;
+        }
+        return 0;
+    };
+    
+    // Run classifier
+    EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false);
+    
+    if (res != EI_IMPULSE_OK) {
+        Serial.printf("ERR: Failed to run classifier (%d)\n", res);
+        esp_camera_fb_return(fb);
+        return;
+    }
+    
+    // Print inference timing
+    Serial.printf("Timing: DSP %d ms, inference %d ms, anomaly %d ms\n", 
+                  result.timing.dsp, 
+                  result.timing.classification, 
+                  result.timing.anomaly);
+    
+    // Print predictions
+    Serial.println("Predictions:");
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        Serial.printf("    %s: %.5f\n", 
+                      result.classification[ix].label, 
+                      result.classification[ix].value);
+    }
+    
+    // Check for license plate detection
+    // Assuming first class is "license_plate"
+    if (result.classification[0].value > 0.7) {
+        Serial.println("✓ LICENSE PLATE DETECTED!");
+    } else {
+        Serial.println("No license plate detected");
+    }
+    
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    Serial.printf("Anomaly score: %.3f\n", result.anomaly);
+#endif
+    
+    // Return frame buffer
+    esp_camera_fb_return(fb);
+    
+    Serial.println("---");
+    delay(2000);  // Wait 2 seconds before next capture
+}

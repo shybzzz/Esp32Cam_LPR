@@ -1,0 +1,89 @@
+# .gitignore for ESP32-CAM License Plate Recognition Project
+
+# PlatformIO
+.pio/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+.vscode/extensions.json
+
+# Build artifacts
+*.o
+*.elf
+*.bin
+*.map
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# TensorFlow / Model files
+*.h5
+*.pb
+*.tflite
+*.onnx
+*.weights
+!src/lpr_model.h
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Edge Impulse
+edge_impulse_data/
+lib/*/
+!lib/README
+
+# Dataset directories (too large for git)
+dataset/
+data/
+images/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+!docs/*.png
+!docs/*.jpg
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+*.code-workspace
+
+# Logs
+*.log
+logs/
+
+# Model training outputs
+model_training/*.tflite
+model_training/*.h
+model_training/checkpoints/
+model_training/saved_models/
+model_training/tensorboard/
+
+# SD card data
+sd_card_data/
+
+# Secrets and credentials
+secrets.h
+config.h
+*.pem
+*.key
+credentials.json

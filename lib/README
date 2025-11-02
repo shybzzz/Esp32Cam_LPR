@@ -1,0 +1,14 @@
+This directory will contain your Edge Impulse or custom libraries.
+
+When using Edge Impulse:
+1. Download the Arduino library from Edge Impulse Studio
+2. Extract the .zip file
+3. Place the extracted folder here
+
+Example structure:
+lib/
+├── README (this file)
+└── your_project_name_inferencing/
+    ├── src/
+    ├── model-parameters/
+    └── library.properties
